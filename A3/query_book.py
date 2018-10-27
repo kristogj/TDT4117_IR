@@ -68,10 +68,8 @@ def stem_words(tok_par):
     :return: List[List[String]]
     """
     stemmer = PorterStemmer()
-    res = []
-    for par in range(0, len(tok_par)):
-        res.append(list(map(lambda word: stemmer.stem(word), tok_par[par])))
-    return res
+    return [list(map(lambda word: stemmer.stem(word), par)) for par in tok_par]
+
 
 
 def get_stopwords():
@@ -92,8 +90,11 @@ def remove_stopwords(dictionary):
     :return: null
     """
     stopwords = get_stopwords()
+    # Remove stopwords that are not in the keys set of the dictionary
     stopwords = list(filter(lambda word: word in dictionary.token2id.keys(), stopwords))
+    # Map the stopwords to the ids
     stop_ids = list(map(lambda word: dictionary.token2id[word], stopwords))
+    # Remove stopwords from dictionary
     dictionary.filter_tokens(stop_ids)
 
 
@@ -197,7 +198,7 @@ def main():
     """
     Querying
     """
-    query = ["What is the function of money?"]
+    query = ["How taxes influence Economics?"]
 
     # Prepare the query
     print("#TF-IDF MODEL")
