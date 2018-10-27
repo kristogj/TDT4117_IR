@@ -27,7 +27,7 @@ def text_to_paragraphs(filename):
             paragraphs.append("".join(paragraph))
             paragraph = []
         else:
-            paragraph.append(line.lower())
+            paragraph.append(line)
     f.close()
     return paragraphs
 
@@ -38,7 +38,7 @@ def filter_paragraphs(par):
     :param par: List[String]
     :return: List[String]
     """
-    return list(filter(lambda p: 'gutenberg' not in p and len(p) > 3, par))
+    return list(filter(lambda p: 'Gutenberg' not in p, par))
 
 
 def remove_punctuation(par):
@@ -48,7 +48,7 @@ def remove_punctuation(par):
     :return: List[String]
     """
     regex = re.compile('[%s]' % re.escape(string.punctuation + "\n\r\t"))
-    return list(map(lambda p: regex.sub("", p), par))
+    return list(map(lambda p: regex.sub("", p).lower(), par))
 
 
 def tokenize_paragraphs(par):
@@ -95,6 +95,27 @@ def paragraph_to_bow(dictionary, tok_par):
     return list(map(lambda par: dictionary.doc2bow(par), tok_par))
 
 
+def preprocessing(dictionary, query):
+    low = list(map(lambda q: q.lower(),query))
+    stripped = remove_punctuation(low)
+    tokenize = tokenize_paragraphs(stripped)
+    stemmed = stem_words(tokenize)
+    bow = paragraph_to_bow(dictionary, stemmed)
+    return bow
+
+
+def print_result(original, res):
+    for tup in res:
+        index, score = tup
+        # Get result paragraph
+        par = original[index]
+        # Truncate to 5 lines
+        par_5lines = par.split("\n")[0:5]
+        # Print result
+        print(f"[paragraph {index}]")
+        print("\n".join(par_5lines) + "\n")
+
+
 def main():
     """
     Data loading and preprocessing
@@ -137,16 +158,47 @@ def main():
     tfidf_corpus = tfidf_model[bow]
 
     # Construct MatrixSimilarity object thath let us calculate similarities between paragraphs and queries
-    tfidf_matrix = gensim.similarities.MatrixSimilarity(tfidf_corpus)
+    tfidf_index = gensim.similarities.MatrixSimilarity(tfidf_corpus)
 
     # Repeat for LSI model
     lsi_model = gensim.models.LsiModel(tfidf_corpus, id2word=dictionary, num_topics=100)
     lsi_corpus = lsi_model[tfidf_corpus]
-    lsi_matrix = gensim.similarities.MatrixSimilarity(lsi_corpus)
+    lsi_index = gensim.similarities.MatrixSimilarity(lsi_corpus)
 
 
     # Report and try to interpret first 3 LSI topics
     lsi_model.print_topics(3)
+
+    """
+    Querying
+    """
+    query = ["How taxes influence Economics?"]
+
+    # Preprocess to bow
+    query = preprocessing(dictionary, query)
+
+    # Convert bow to TF-IDF rep
+    tfidf_query = tfidf_model[query][0]
+
+    # Do query and report top 3 most relevant paragraphs
+    print("#TF-IDF MODEL")
+    doc2similarity = enumerate(tfidf_index[tfidf_query])
+    res_tfidf = sorted(doc2similarity, key=lambda kv: -kv[1])[:3]
+    print("TF-IDF SIM", res_tfidf)
+    print_result(original, res_tfidf)
+
+    # Do the same with the LSI model
+    lsi_query = lsi_model[tfidf_query]
+    print("#LSIMODEL")
+    lsi_query_sorted = sorted(lsi_query, key=lambda kv: -abs(kv[1]))[:3]
+    print("LSI_MODEL TOPICS",lsi_model.show_topics())
+    doc2similarity = enumerate(lsi_index[lsi_query_sorted])
+    res_lsi = sorted(doc2similarity, key=lambda kv: -kv[1])[:3]
+    print_result(original, res_lsi)
+
+
+
+
 
 
 
