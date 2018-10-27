@@ -6,7 +6,11 @@ from nltk.stem.porter import PorterStemmer
 import gensim
 from pprint import pprint
 import os
+import logging
+
 random.seed(123)
+# For logging events
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 
 def text_to_paragraphs(filename):
@@ -126,6 +130,23 @@ def main():
     """
     Retrival Models
     """
+    # Build TF_IDF model
+    tfidf_model = gensim.models.TfidfModel(bow)
+
+    # Map Bags-of-Words into TF_IDF weights
+    tfidf_corpus = tfidf_model[bow]
+
+    # Construct MatrixSimilarity object thath let us calculate similarities between paragraphs and queries
+    tfidf_matrix = gensim.similarities.MatrixSimilarity(tfidf_corpus)
+
+    # Repeat for LSI model
+    lsi_model = gensim.models.LsiModel(tfidf_corpus, id2word=dictionary, num_topics=100)
+    lsi_corpus = lsi_model[tfidf_corpus]
+    lsi_matrix = gensim.similarities.MatrixSimilarity(lsi_corpus)
+
+
+    # Report and try to interpret first 3 LSI topics
+    lsi_model.print_topics(3)
 
 
 
